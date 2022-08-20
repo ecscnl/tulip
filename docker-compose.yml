@@ -51,7 +51,7 @@ services:
     networks:
       - internal
     volumes:
-      - /traffic:/traffic:ro
+      - ./shared:/traffic:ro
     command: "./assembler -dir /traffic"
     environment:
       TULIP_MONGO: mongo:27017
