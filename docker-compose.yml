@@ -19,6 +19,8 @@ services:
       - mongo
     networks:
       - internal
+    volumes:
+      - ./frontend:/app
     environment:
       API_SERVER_ENDPOINT: http://api:5000/
 
