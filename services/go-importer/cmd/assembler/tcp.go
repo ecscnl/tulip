@@ -9,8 +9,8 @@
 package main
 
 import (
-	"encoding/hex"
 	"go-importer/internal/pkg/db"
+	"log"
 
 	"sync"
 	"time"
@@ -27,6 +27,7 @@ var quiet = true
 
 const closeTimeout time.Duration = time.Hour * 24 // Closing inactive: TODO: from CLI
 const timeout time.Duration = time.Minute * 5     // Pending bytes: TODO: from CLI
+const streamdoc_limit int = 15_000_000
 
 /*
  * The TCP factory: returns a new Stream
@@ -89,6 +90,7 @@ type tcpStream struct {
 	FlowItems          []db.FlowItem
 	src_port           layers.TCPPort
 	dst_port           layers.TCPPort
+	total_size         int
 }
 
 func (t *tcpStream) Accept(tcp *layers.TCP, ci gopacket.CaptureInfo, dir reassembly.TCPFlowDirection, nextSeq reassembly.Sequence, start *bool, ac reassembly.AssemblerContext) bool {
@@ -123,6 +125,17 @@ func (t *tcpStream) ReassembledSG(sg reassembly.ScatterGather, ac reassembly.Ass
 
 	data := sg.Fetch(length)
 
+	// We have to make sure to stay under the document limit
+	t.total_size += length
+	bytes_available := streamdoc_limit - t.total_size
+	if length > bytes_available {
+		length = bytes_available
+	}
+	if length < 0 {
+		length = 0
+	}
+	string_data := string(data[:length])
+
 	var from string
 	if dir == reassembly.TCPDirClientToServer {
 		from = "c"
@@ -134,17 +147,23 @@ func (t *tcpStream) ReassembledSG(sg reassembly.ScatterGather, ac reassembly.Ass
 	l := len(t.FlowItems)
 	if l > 0 {
 		if t.FlowItems[l-1].From == from {
-			t.FlowItems[l-1].Data += string(data)
-			t.FlowItems[l-1].Hex += hex.EncodeToString(data)
+			t.FlowItems[l-1].Data += string_data
+			g_db.AppendToFile(t.FlowItems[l-1].Raw, data)
 			// All done, no need to add a new item
 			return
 		}
 	}
 
+	fileID, err := g_db.InsertFile(data, nil)
+	if err != nil {
+		log.Println("Failed to insert raw data to a file")
+		// TODO; exit or fallback?
+	}
+
 	// Add a FlowItem based on the data we just reassembled
 	t.FlowItems = append(t.FlowItems, db.FlowItem{
-		Data: string(data),
-		Hex:  hex.EncodeToString(data),
+		Data: string_data,
+		Raw:  fileID,
 		From: from,
 		Time: int(timestamp.UnixNano() / 1000000), // TODO; maybe use int64?
 	})
