@@ -10,7 +10,6 @@ package main
 
 import (
 	"go-importer/internal/pkg/db"
-	"log"
 
 	"sync"
 	"time"
@@ -148,22 +147,14 @@ func (t *tcpStream) ReassembledSG(sg reassembly.ScatterGather, ac reassembly.Ass
 	if l > 0 {
 		if t.FlowItems[l-1].From == from {
 			t.FlowItems[l-1].Data += string_data
-			g_db.AppendToFile(t.FlowItems[l-1].Raw, data)
 			// All done, no need to add a new item
 			return
 		}
 	}
 
-	fileID, err := g_db.InsertFile(data, nil)
-	if err != nil {
-		log.Println("Failed to insert raw data to a file")
-		// TODO; exit or fallback?
-	}
-
 	// Add a FlowItem based on the data we just reassembled
 	t.FlowItems = append(t.FlowItems, db.FlowItem{
 		Data: string_data,
-		Raw:  fileID,
 		From: from,
 		Time: int(timestamp.UnixNano() / 1000000), // TODO; maybe use int64?
 	})
@@ -218,7 +209,7 @@ func (t *tcpStream) ReassemblyComplete(ac reassembly.AssemblerContext) bool {
 		Starred:  false,
 		Blocked:  false,
 		Tags:     make([]string, 0),
-		Suricata: make([]int, 0),
+		Suricata: make([]string, 0),
 		Filename: t.source,
 		Flow:     t.FlowItems,
 	}

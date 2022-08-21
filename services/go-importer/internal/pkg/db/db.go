@@ -1,16 +1,13 @@
 package db
 
 import (
-	"bytes"
 	"context"
 	"log"
 	"time"
 
-	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/gridfs"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
@@ -21,8 +18,6 @@ type FlowItem struct {
 	From string
 	/// Data, in a somewhat readable format
 	Data string
-	/// A FileID for the backing raw data store
-	Raw interface{}
 	/// Timestamp of the first packet in the flow (Epoch / ms)
 	Time int
 }
@@ -38,7 +33,7 @@ type FlowEntry struct {
 	Starred  bool
 	Blocked  bool
 	Filename string
-	Suricata []int
+	Suricata []string
 	Flow     []FlowItem
 	Tags     []string
 }
@@ -250,78 +245,4 @@ func (db Database) InsertTag(tag string) {
 	tagCollection := db.client.Database("pcap").Collection("tags")
 	// Yeah this will err... A lot.... Two more dev days till Athens, this will do.
 	tagCollection.InsertOne(context.TODO(), bson.M{"_id": tag})
-}
-
-// Insert a new file into the database, by providing a raw slice of bytes
-// return value: ID of inserted file
-func (db Database) InsertFile(data []byte, id interface{}) (interface{}, error) {
-	bucket, err := gridfs.NewBucket(
-		db.client.Database("pcap"),
-	)
-
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-
-	filename := uuid.New().String()
-	var stream *gridfs.UploadStream
-	if id != nil {
-		stream, err = bucket.OpenUploadStreamWithID(id, filename)
-	} else {
-		stream, err = bucket.OpenUploadStream(filename)
-	}
-	defer stream.Close()
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	stream.Write(data)
-
-	return stream.FileID, nil
-}
-
-func (db Database) ReadFile(id interface{}) ([]byte, error) {
-	bucket, err := gridfs.NewBucket(
-		db.client.Database("pcap"),
-	)
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	stream, err := bucket.OpenDownloadStream(id)
-	defer stream.Close()
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(stream)
-	return buf.Bytes(), nil
-}
-
-func (db Database) DeleteFile(id interface{}) error {
-	bucket, err := gridfs.NewBucket(
-		db.client.Database("pcap"),
-	)
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-	return bucket.Delete(id)
-}
-
-func (db Database) AppendToFile(id interface{}, data []byte) error {
-	orig_data, err := db.ReadFile(id)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	err = db.DeleteFile(id)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	_, err = db.InsertFile(append(orig_data, data...), id)
-	return err
 }

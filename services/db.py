@@ -91,10 +91,6 @@ class DB:
             tmp = self.signature_coll.find_one({"_id": ObjectId(sig_id)})
             if tmp:
                 ret["signatures"].append(tmp)
-        # Resolve hex data
-        for i in range(len(ret["flow"])):
-            raw_id = ret["flow"][i]["raw"]
-            ret["flow"][i]["hex"] = (self.getRawFile(raw_id) or "FAILED TO RECEIVE DATA").hex()
         
         return ret
 
