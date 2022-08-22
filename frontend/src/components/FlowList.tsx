@@ -28,6 +28,8 @@ import classNames from "classnames";
 import { Tag } from "./Tag";
 import { lastRefreshAtom } from "./Header";
 
+import {CorrelationChart} from "./CorrelationChart"
+
 export function FlowList() {
   let [searchParams] = useSearchParams();
   let params = useParams();
@@ -138,6 +140,9 @@ export function FlowList() {
             </div>
           </div>
         )}
+      </div>
+      <div>
+        <CorrelationChart flows={flowList} searchParams={searchParams}></CorrelationChart>
       </div>
       <div></div>
       <Virtuoso

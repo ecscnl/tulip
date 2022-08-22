@@ -1,7 +1,6 @@
 import { useParams } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import { useTulip, FlowData, FullFlow } from "../api";
-import { Buffer } from "buffer";
 
 import {
   ArrowCircleLeftIcon,
