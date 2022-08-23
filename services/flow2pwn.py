@@ -52,7 +52,10 @@ proc = remote(host, {})
 
         else:
             for m in range(len(message['data'])):
-                script += """proc.recvuntil(b"{}")\n""".format(convert(message)[-20:].replace("\n","\\n"))
+                # Dirty fix
+                script += """proc.recvuntil(b"{}")\n""".format(convert({
+                    "hex": bytes.fromhex(message["hex"])[-10:].hex()
+                    }).replace("\n","\\n"))
                 break
 
     return script

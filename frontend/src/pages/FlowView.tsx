@@ -148,6 +148,10 @@ function Flow({ full_flow, flow, delta_time }: FlowProps) {
   // Basic type detection, currently unused
   const [displayOption, setDisplayOption] = useState(detectType(flow));
 
+  function openInCyberchef() {
+    window.open("https://gchq.github.io/CyberChef/#input=" + encodeURIComponent(btoa(flow.data)))
+  }
+
   return (
     <div className=" text-mono">
       <div
@@ -166,6 +170,7 @@ function Flow({ full_flow, flow, delta_time }: FlowProps) {
             {formatted_time}
             <span className="text-gray-400 pl-3">{delta_time}ms</span>
           </div>
+          <button className="bg-gray-200 px-1 rounded-sm text-sm" onClick={openInCyberchef}>Open in cyberchef</button>
           <RadioGroup
             options={displayOptions}
             value={displayOption}
