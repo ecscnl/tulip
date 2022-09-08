@@ -62,7 +62,10 @@ export type Service = {
     name: string;
 };
 
-
+export type TickInfo = {
+    startDate: string;
+    tickLength: number;
+};
 
 class TulipApi {
     private API_ENDPOINT = "/api";
@@ -70,6 +73,11 @@ class TulipApi {
     async getServices() {
         const response = await fetch(`${this.API_ENDPOINT}/services`);
         return (await response.json()) as Service[];
+    }
+
+    async getTickInfo() {
+        const response = await fetch(`${this.API_ENDPOINT}/tick_info`);
+        return (await response.json()) as TickInfo;
     }
 
     async _getFlows(query: FlowsQuery, destToService: any) {
@@ -156,10 +164,15 @@ const serviceAtom = atom(async (get) => {
     return await api.getServices();
 });
 
+export const tickInfoAtom = atom(async (get) => {
+    console.log("Fetching tick info");
+    return await api.getTickInfo();
+});
 
 export const useTulip = function () {
     // Limitation: fetches services only once at start, need to refresh page if service list updates
     const [services] = useAtom(serviceAtom);
+    const [tickInfo] = useAtom(tickInfoAtom);
 
     // HACK: map dest to service, could be done in server I guess
     const destToService = function (ip: string, port: number): Service {
@@ -170,6 +183,5 @@ export const useTulip = function () {
         return await api._getFlows(query, destToService);
     }
 
-
-    return { services, getFlows, api };
+    return { tickInfo, services, getFlows, api };
 }

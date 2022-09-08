@@ -1,9 +1,9 @@
 import { format, parse } from "date-fns";
 import { atom, useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Link, useParams, useSearchParams, useNavigate  } from "react-router-dom";
-import { Service, useTulip } from "../api";
+import { TickInfo, tickInfoAtom, useTulip } from "../api";
 import ReactDiffViewer from 'react-diff-viewer';
 
 import {
@@ -14,7 +14,7 @@ import {
   FIRST_DIFF_KEY,
   SECOND_DIFF_KEY,
 } from "../App";
-import { useCTF } from "../pages/Home";
+import { appendFile } from "fs";
 
 export const showHexAtom = atomWithStorage("showHex", false);
 
@@ -26,7 +26,7 @@ function ServiceSelection() {
 
   // TODO add all, maybe user react-select
 
-  const { api, services } = useTulip();
+  const { services } = useTulip();
 
   const service_select = [
     {
@@ -86,8 +86,8 @@ function TextSearch() {
 function useMessyTimeStuff() {
   let [searchParams, setSearchParams] = useSearchParams();
 
-  const { startDate, tickLength } = useCTF();
-
+  const tickInfo = {startDate: "a", tickLength: 1}
+  const { startDate, tickLength } = tickInfo;
   function setTimeParam(startTick: string, param: string) {
     const parsedTick = startTick === "" ? undefined : parseInt(startTick);
     const unixTime = tickToUnixTime(parsedTick);
@@ -184,24 +184,6 @@ function EndDateSelection() {
   );
 }
 
-function ShowHexToggle() {
-  const [showHex, setShowHex] = useAtom(showHexAtom);
-
-  return (
-    <div className="flex items-baseline mx-4">
-      <input
-        type="checkbox"
-        className="mr-2"
-        checked={showHex}
-        onChange={() => {
-          setShowHex(!showHex);
-        }}
-      />
-      <label htmlFor="">Hexdump</label>
-    </div>
-  );
-}
-
 function FirstDiff() {
   let params = useParams();
   let [searchParams, setSearchParams] = useSearchParams();
@@ -281,9 +263,8 @@ function Diff() {
 
 export function Header() {
   let [searchParams] = useSearchParams();
-  const { setToLastnTicks, currentTick } = useMessyTimeStuff();
-
-  const [lastRefresh, setLastRefresh] = useAtom(lastRefreshAtom);
+  const { tickInfo } = useTulip();
+  const { currentTick } = useMessyTimeStuff();
 
   return (
     <>
@@ -317,10 +298,6 @@ export function Header() {
           </Suspense>
         </div>
         <div className="ml-auto mr-4" style= {{"display": "flex", "justifyContent": "center", "alignContent": "center", "flexDirection": "column"}}>Current: {currentTick}</div>
-
-      {/* <div className="ml-auto">
-        <ShowHexToggle></ShowHexToggle>
-      </div> */}
       </div>
     </>
   );
