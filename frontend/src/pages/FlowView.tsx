@@ -191,7 +191,7 @@ function FlowOverview({ flow }: { flow: FullFlow }) {
   return (
     <div>
       {flow.signatures?.length > 0 ? (
-        <div className="bg-blue-200">
+        <div className="bg-blue-200 p-2">
           <div className="font-extrabold">Suricata</div>
           <div className="pl-2">
             {flow.signatures.map((sig) => {
@@ -223,7 +223,7 @@ function FlowOverview({ flow }: { flow: FullFlow }) {
           </div>
         </div>
       ) : undefined}
-      <div className="bg-yellow-200">
+      <div className="bg-yellow-200 p-2">
         <div className="font-extrabold">Meta</div>
         <div className="pl-2">
           <div>Source: </div>
