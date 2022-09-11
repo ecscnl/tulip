@@ -107,29 +107,25 @@ export const Corrie = () => {
     }
 
     return (
-        <div>
-            <div className="flex flex-col h-full">
-                <div className="text-sm bg-white border-b-gray-300 border-b shadow-md flex flex-col">
-                    <div className="p-2 flex space-x-2" style={{ height: 50 }}>
-                        <a className="text-center px-2 py-2">Correlation mode: </a>
-                        <button className={mode == "time" ? activeButtonClass : inactiveButtonClass}
-                                onClick={() => setCorrelationMode("time")}>
-                            time
-                        </button>
-                        <button className={mode == "packets" ? activeButtonClass : inactiveButtonClass}
-                                onClick={() => setCorrelationMode("packets")}>
-                            packets
-                        </button>
-                        <button className={mode == "tags" ? activeButtonClass : inactiveButtonClass}
-                                onClick={() => setCorrelationMode("tags")}>
-                            tags
-                        </button>
-                    </div>
+        <div className="flex flex-col h-full">
+            <div className="text-sm bg-white border-b-gray-300 border-b shadow-md flex flex-col">
+                <div className="p-2 flex space-x-2" style={{ height: 50 }}>
+                    <a className="text-center px-2 py-2">Correlation mode: </a>
+                    <button className={mode == "time" ? activeButtonClass : inactiveButtonClass}
+                            onClick={() => setCorrelationMode("time")}>
+                        time
+                    </button>
+                    <button className={mode == "packets" ? activeButtonClass : inactiveButtonClass}
+                            onClick={() => setCorrelationMode("packets")}>
+                        packets
+                    </button>
+                    <button className={mode == "tags" ? activeButtonClass : inactiveButtonClass}
+                            onClick={() => setCorrelationMode("tags")}>
+                        tags
+                    </button>
                 </div>
             </div>
-            <div>
-            </div>
-            <div>
+            <div className="flex-1 w-full overflow-hidden p-4">
                 {(mode == "packets" || mode == "time") && TimePacketGraph(graphProps)}
                 {(mode == "tags") && TagGraph(graphProps)}
             </div>
@@ -204,6 +200,8 @@ function TimePacketGraph(graphProps: GraphProps) {
             options={options}
             series={series}
             type="scatter"
+            width="100%"
+            height="100%"
         />
     )
 }
