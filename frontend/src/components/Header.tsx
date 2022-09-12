@@ -2,9 +2,14 @@ import { format, parse } from "date-fns";
 import { atom, useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { Suspense, useState } from "react";
-import { Link, useParams, useSearchParams, useNavigate  } from "react-router-dom";
+import {
+  Link,
+  useParams,
+  useSearchParams,
+  useNavigate,
+} from "react-router-dom";
 import { Service, useTulip } from "../api";
-import ReactDiffViewer from 'react-diff-viewer';
+import ReactDiffViewer from "react-diff-viewer";
 
 import {
   END_FILTER_KEY,
@@ -13,8 +18,10 @@ import {
   TEXT_FILTER_KEY,
   FIRST_DIFF_KEY,
   SECOND_DIFF_KEY,
-} from "../App";
+  SERVICE_REFETCH_INTERVAL_MS,
+} from "../const";
 import { useCTF } from "../pages/Home";
+import { useGetFlowQuery, useGetServicesQuery } from "../services/api";
 
 export const showHexAtom = atomWithStorage("showHex", false);
 
@@ -26,7 +33,9 @@ function ServiceSelection() {
 
   // TODO add all, maybe user react-select
 
-  const { api, services } = useTulip();
+  const { data: services } = useGetServicesQuery(undefined, {
+    pollingInterval: SERVICE_REFETCH_INTERVAL_MS,
+  });
 
   const service_select = [
     {
@@ -34,7 +43,7 @@ function ServiceSelection() {
       port: 0,
       name: "all",
     },
-    ...services,
+    ...(services || []),
   ];
   let [searchParams, setSearchParams] = useSearchParams();
   console.log(...searchParams.entries(), service_select);
@@ -205,78 +214,75 @@ function ShowHexToggle() {
 function FirstDiff() {
   let params = useParams();
   let [searchParams, setSearchParams] = useSearchParams();
-  const [firstFlow, setFirstFlow] = useState<string>(searchParams.get(FIRST_DIFF_KEY) ?? "");
-  
-  return (<input
-        type="text"
-        placeholder="First Diff ID"
-        readOnly 
-        value={firstFlow}
-        onClick={(event) => {
-          let textFilter = params.id;
-          if (textFilter) {
-            searchParams.set(FIRST_DIFF_KEY, textFilter);
-            setFirstFlow(textFilter);
-          } else {
-            searchParams.delete(FIRST_DIFF_KEY);
-            setFirstFlow("");
-          }
-          setSearchParams(searchParams);
-        }}
-      ></input>)
+  const [firstFlow, setFirstFlow] = useState<string>(
+    searchParams.get(FIRST_DIFF_KEY) ?? ""
+  );
+
+  return (
+    <input
+      type="text"
+      placeholder="First Diff ID"
+      readOnly
+      value={firstFlow}
+      onClick={(event) => {
+        let textFilter = params.id;
+        if (textFilter) {
+          searchParams.set(FIRST_DIFF_KEY, textFilter);
+          setFirstFlow(textFilter);
+        } else {
+          searchParams.delete(FIRST_DIFF_KEY);
+          setFirstFlow("");
+        }
+        setSearchParams(searchParams);
+      }}
+    ></input>
+  );
 }
 
 function SecondDiff() {
   let params = useParams();
   let [searchParams, setSearchParams] = useSearchParams();
-  const [secondFlow, setSecondFlow] = useState<string>(searchParams.get(SECOND_DIFF_KEY) ?? "");
+  const [secondFlow, setSecondFlow] = useState<string>(
+    searchParams.get(SECOND_DIFF_KEY) ?? ""
+  );
 
-  return(
-      <input
-        type="text"
-        placeholder="Second Flow ID"
-        readOnly
-        value={secondFlow}
-        onClick={(event) => {
-          let textFilter = params.id;
-          if (textFilter) {
-            searchParams.set(SECOND_DIFF_KEY, textFilter);
-            setSecondFlow(textFilter);
-          } else {
-            searchParams.delete(SECOND_DIFF_KEY);
-            setSecondFlow("");
-          }
-          setSearchParams(searchParams);
-        }}
-      ></input>)
+  return (
+    <input
+      type="text"
+      placeholder="Second Flow ID"
+      readOnly
+      value={secondFlow}
+      onClick={(event) => {
+        let textFilter = params.id;
+        if (textFilter) {
+          searchParams.set(SECOND_DIFF_KEY, textFilter);
+          setSecondFlow(textFilter);
+        } else {
+          searchParams.delete(SECOND_DIFF_KEY);
+          setSecondFlow("");
+        }
+        setSearchParams(searchParams);
+      }}
+    ></input>
+  );
 }
 
 function Diff() {
   let params = useParams();
-  let [searchParams, setSearchParams] = useSearchParams();
-  const { api } = useTulip();
+
+  let [searchParams] = useSearchParams();
+
   let navigate = useNavigate();
-  return(<button
-    className=" bg-amber-100 text-gray-800 rounded-md px-2 py-1"
-    onClick={async () => {
-      const firstFlowID = searchParams.get(FIRST_DIFF_KEY) || "";
-      const secondFlowID = searchParams.get(SECOND_DIFF_KEY) || "";
-
-      if (firstFlowID == "" || secondFlowID == "") {
-        alert("Missing flow id")
-        return;
-      }
-
-      // TODO try catch maybe for when it fails
-      const flow1 = await api.getFlow(firstFlowID);
-      const flow2 = await api.getFlow(secondFlowID);
-
-      navigate(`/diff/${params.id ?? ""}?${searchParams}`, { replace: true });
-
-    }}
-  >
-    Diff
-  </button>)
+  return (
+    <button
+      className=" bg-amber-100 text-gray-800 rounded-md px-2 py-1"
+      onClick={() => {
+        navigate(`/diff/${params.id ?? ""}?${searchParams}`, { replace: true });
+      }}
+    >
+      Diff
+    </button>
+  );
 }
 
 export function Header() {
@@ -316,9 +322,11 @@ export function Header() {
         </button>
       </div>
       <Link to={`/corrie?${searchParams}`}>
-        <div className="bg-blue-100 text-gray-800 rounded-md px-2 py-1">Time Correlation</div>
+        <div className="bg-blue-100 text-gray-800 rounded-md px-2 py-1">
+          Time Correlation
+        </div>
       </Link>
-      <div className="ml-auto mr-4" style={{"display": "flex"}}>
+      <div className="ml-auto mr-4" style={{ display: "flex" }}>
         <div className="mr-4">
           <FirstDiff></FirstDiff>
         </div>
@@ -330,9 +338,19 @@ export function Header() {
             <Diff></Diff>
           </Suspense>
         </div>
-      <div className="ml-auto mr-4" style= {{"display": "flex", "justifyContent": "center", "alignContent": "center", "flexDirection": "column"}}>Current: {currentTick}</div>
+        <div
+          className="ml-auto mr-4"
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignContent: "center",
+            flexDirection: "column",
+          }}
+        >
+          Current: {currentTick}
+        </div>
 
-      {/* <div className="ml-auto">
+        {/* <div className="ml-auto">
         <ShowHexToggle></ShowHexToggle>
       </div> */}
       </div>

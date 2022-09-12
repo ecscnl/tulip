@@ -12,7 +12,8 @@ import {
   TEXT_FILTER_KEY,
   START_FILTER_KEY,
   END_FILTER_KEY,
-} from "../App";
+} from "../const";
+import { toggleFilterTag, useAppSelector, useAppDispatch } from "../store";
 
 import { HeartIcon, FilterIcon, LinkIcon } from "@heroicons/react/solid";
 import {
@@ -27,12 +28,20 @@ import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import classNames from "classnames";
 import { Tag } from "./Tag";
 import { lastRefreshAtom } from "./Header";
+import { useGetTagsQuery, useStarFlowMutation } from "../services/api";
 
 export function FlowList() {
   let [searchParams] = useSearchParams();
   let params = useParams();
 
-  const { services, api, getFlows } = useTulip();
+  const { data: availableTags } = useGetTagsQuery();
+
+  const filterTags = useAppSelector((state) => state.filter.filterTags);
+  const dispatch = useAppDispatch();
+
+  const [starFlow] = useStarFlowMutation();
+
+  const { services, getFlows } = useTulip();
 
   const [flowList, setFlowList] = useState<Flow[]>([]);
 
@@ -50,21 +59,9 @@ export function FlowList() {
 
   const debounced_text_filter = useDebounce(text_filter, 300);
 
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
-
   const [loading, setLoading] = useState(false);
 
   const [lastRefresh, setLastRefresh] = useAtom(lastRefreshAtom);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const data = await api.getTags();
-      setAvailableTags(data);
-      console.log(data);
-    };
-    fetchData().catch(console.error);
-  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -76,15 +73,16 @@ export function FlowList() {
         from_time: from_filter,
         to_time: to_filter,
         service: "", // FIXME
-        tags: selectedTags,
+        tags: filterTags,
       });
       data.forEach((flow, index) => {
-        if (flow._id.$oid === params.id) { setFlowIndex(index) }
-      })
+        if (flow._id.$oid === params.id) {
+          setFlowIndex(index);
+        }
+      });
 
       setFlowList(data);
       setLoading(false);
-
     };
     fetchData().catch(console.error);
   }, [
@@ -92,20 +90,15 @@ export function FlowList() {
     debounced_text_filter,
     from_filter,
     to_filter,
-    selectedTags,
+    filterTags,
     lastRefresh,
     params,
-    virtuoso
+    virtuoso,
   ]);
 
-  const onHeartHandler = useCallback(async (flow: Flow) => {
-    await api.starFlow(flow._id.$oid, !flow.tags.includes("starred"));
-    // optimistic update
-    const newFlow = { ...flow };
-    setFlowList((prev) =>
-      prev.map((f) => (f._id.$oid === flow._id.$oid ? newFlow : f))
-    );
-  }, []);
+  const onHeartHandler = async (flow: Flow) => {
+    await starFlow({ id: flow._id.$oid, star: !flow.tags.includes("starred") });
+  };
 
   const [showFilters, setShowFilters] = useState(false);
 
@@ -133,18 +126,12 @@ export function FlowList() {
               Intersection filter
             </p>
             <div className="flex gap-2 flex-wrap">
-              {availableTags.map((tag) => (
+              {(availableTags ?? []).map((tag) => (
                 <Tag
                   key={tag}
                   tag={tag}
-                  disabled={!selectedTags.includes(tag)}
-                  onClick={() =>
-                    setSelectedTags(
-                      selectedTags.includes(tag)
-                        ? selectedTags.filter((t) => t != tag)
-                        : [...selectedTags, tag]
-                    )
-                  }
+                  disabled={!filterTags.includes(tag)}
+                  onClick={() => dispatch(toggleFilterTag(tag))}
                 ></Tag>
               ))}
             </div>
@@ -221,7 +208,8 @@ function FlowListEntry({ flow, isActive, onHeartClick }: FlowListEntryProps) {
         </div>
 
         <div className="w-5 mr-2 self-center shrink-0">
-          {flow.child_id.$oid != "000000000000000000000000" || flow.parent_id.$oid != "000000000000000000000000" ? (
+          {flow.child_id.$oid != "000000000000000000000000" ||
+          flow.parent_id.$oid != "000000000000000000000000" ? (
             <LinkIcon className="text-blue-500" />
           ) : undefined}
         </div>
