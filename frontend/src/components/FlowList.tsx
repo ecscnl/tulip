@@ -4,22 +4,20 @@ import {
   useParams,
   useNavigate,
 } from "react-router-dom";
-import { useCallback, useEffect, useState, useRef } from "react";
-import { useAtom, useAtomValue } from "jotai";
-import { Flow, FullFlow, useTulip } from "../api";
+import { useState, useRef } from "react";
+import { Flow } from "../types";
 import {
   SERVICE_FILTER_KEY,
   TEXT_FILTER_KEY,
   START_FILTER_KEY,
   END_FILTER_KEY,
+  FLOW_LIST_REFETCH_INTERVAL_MS,
 } from "../const";
-import { toggleFilterTag, useAppSelector, useAppDispatch } from "../store";
+import { useAppSelector, useAppDispatch } from "../store";
+import { toggleFilterTag } from "../store/filter";
 
 import { HeartIcon, FilterIcon, LinkIcon } from "@heroicons/react/solid";
-import {
-  HeartIcon as EmptyHeartIcon,
-  FilterIcon as EmptyFilterIcon,
-} from "@heroicons/react/outline";
+import { HeartIcon as EmptyHeartIcon } from "@heroicons/react/outline";
 
 import classes from "./FlowList.module.css";
 import { format } from "date-fns";
@@ -27,23 +25,24 @@ import useDebounce from "../hooks/useDebounce";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import classNames from "classnames";
 import { Tag } from "./Tag";
-import { lastRefreshAtom } from "./Header";
-import { useGetTagsQuery, useStarFlowMutation } from "../services/api";
+import {
+  useGetFlowsQuery,
+  useGetServicesQuery,
+  useGetTagsQuery,
+  useStarFlowMutation,
+} from "../api";
 
 export function FlowList() {
   let [searchParams] = useSearchParams();
   let params = useParams();
 
   const { data: availableTags } = useGetTagsQuery();
+  const { data: services } = useGetServicesQuery();
 
   const filterTags = useAppSelector((state) => state.filter.filterTags);
   const dispatch = useAppDispatch();
 
   const [starFlow] = useStarFlowMutation();
-
-  const { services, getFlows } = useTulip();
-
-  const [flowList, setFlowList] = useState<Flow[]>([]);
 
   // Set default flowIndex to Infinity, so that initialTopMostItemIndex != 0 and therefore scrolledToInitialItem != true
   const [flowIndex, setFlowIndex] = useState<number>(1);
@@ -51,7 +50,7 @@ export function FlowList() {
   const virtuoso = useRef<VirtuosoHandle>(null);
 
   const service_name = searchParams.get(SERVICE_FILTER_KEY) ?? "";
-  const service = services.find((s) => s.name == service_name);
+  const service = services?.find((s) => s.name == service_name);
 
   const text_filter = searchParams.get(TEXT_FILTER_KEY) ?? undefined;
   const from_filter = searchParams.get(START_FILTER_KEY) ?? undefined;
@@ -59,42 +58,30 @@ export function FlowList() {
 
   const debounced_text_filter = useDebounce(text_filter, 300);
 
-  const [loading, setLoading] = useState(false);
+  const { data: flowData, isLoading } = useGetFlowsQuery(
+    {
+      "flow.data": debounced_text_filter,
+      dst_ip: service?.ip,
+      dst_port: service?.port,
+      from_time: from_filter,
+      to_time: to_filter,
+      service: "", // FIXME
+      tags: filterTags,
+    },
+    {
+      refetchOnMountOrArgChange: true,
+      pollingInterval: FLOW_LIST_REFETCH_INTERVAL_MS,
+    }
+  );
 
-  const [lastRefresh, setLastRefresh] = useAtom(lastRefreshAtom);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const data = await getFlows({
-        "flow.data": debounced_text_filter,
-        dst_ip: service?.ip,
-        dst_port: service?.port,
-        from_time: from_filter,
-        to_time: to_filter,
-        service: "", // FIXME
-        tags: filterTags,
-      });
-      data.forEach((flow, index) => {
-        if (flow._id.$oid === params.id) {
-          setFlowIndex(index);
-        }
-      });
-
-      setFlowList(data);
-      setLoading(false);
-    };
-    fetchData().catch(console.error);
-  }, [
-    service,
-    debounced_text_filter,
-    from_filter,
-    to_filter,
-    filterTags,
-    lastRefresh,
-    params,
-    virtuoso,
-  ]);
+  // TODO: fix the below transformation - move it to server
+  // Diederik gives you a beer once it has been fixed
+  const transformedFlowData = flowData?.map((flow) => ({
+    ...flow,
+    service_tag:
+      services?.find((s) => s.ip === flow.dst_ip && s.port === flow.dst_port)
+        ?.name ?? "unknown",
+  }));
 
   const onHeartHandler = async (flow: Flow) => {
     await starFlow({ id: flow._id.$oid, star: !flow.tags.includes("starred") });
@@ -143,9 +130,9 @@ export function FlowList() {
         className={classNames({
           "flex-1": true,
           [classes.list_container]: true,
-          "sidebar-loading": loading,
+          "sidebar-loading": isLoading,
         })}
-        data={flowList}
+        data={transformedFlowData}
         ref={virtuoso}
         initialTopMostItemIndex={flowIndex}
         itemContent={(index, flow) => (

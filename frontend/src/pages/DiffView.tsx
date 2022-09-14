@@ -9,7 +9,7 @@ import { RadioGroup } from "../components/RadioGroup";
 import { hexy } from "hexy";
 
 import { FIRST_DIFF_KEY, SECOND_DIFF_KEY } from "../const";
-import { useGetFlowQuery } from "../services/api";
+import { useGetFlowQuery } from "../api";
 
 function Flow(flow1: string, flow2: string) {
   return (

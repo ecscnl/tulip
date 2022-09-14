@@ -9,3 +9,5 @@ export const SECOND_DIFF_KEY = "second";
 export const CORRELATION_MODE_KEY = "correlation";
 
 export const SERVICE_REFETCH_INTERVAL_MS = 15000;
+export const TICK_REFETCH_INTERVAL_MS = 10000;
+export const FLOW_LIST_REFETCH_INTERVAL_MS = 30000;

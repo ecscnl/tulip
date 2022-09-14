@@ -1,20 +1,19 @@
 import { useSearchParams, useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState, useCallback } from "react";
-import { useAtom } from "jotai";
-import { Flow, useTulip } from "../api";
+import { useCallback } from "react";
+import { Flow } from "../types";
 import {
   SERVICE_FILTER_KEY,
   TEXT_FILTER_KEY,
   START_FILTER_KEY,
   END_FILTER_KEY,
   CORRELATION_MODE_KEY,
+  FLOW_LIST_REFETCH_INTERVAL_MS,
 } from "../const";
 import useDebounce from "../hooks/useDebounce";
-import { lastRefreshAtom } from "./Header";
 
 import ReactApexChart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
-import { useGetServicesQuery, useGetTagsQuery } from "../services/api";
+import { useGetFlowsQuery, useGetServicesQuery } from "../api";
 import { useAppSelector } from "../store";
 
 interface GraphProps {
@@ -26,12 +25,8 @@ interface GraphProps {
 }
 
 export const Corrie = () => {
-  const { api, getFlows } = useTulip();
-
   const { data: services } = useGetServicesQuery();
   const filterTags = useAppSelector((state) => state.filter.filterTags);
-
-  const [flowList, setFlowList] = useState<Flow[]>([]);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -44,34 +39,30 @@ export const Corrie = () => {
 
   const debounced_text_filter = useDebounce(text_filter, 300);
 
-  const [loading, setLoading] = useState(false);
+  const { data: flowData, isLoading } = useGetFlowsQuery(
+    {
+      "flow.data": debounced_text_filter,
+      dst_ip: service?.ip,
+      dst_port: service?.port,
+      from_time: from_filter,
+      to_time: to_filter,
+      service: "", // FIXME
+      tags: filterTags,
+    },
+    {
+      refetchOnMountOrArgChange: true,
+      pollingInterval: FLOW_LIST_REFETCH_INTERVAL_MS,
+    }
+  );
 
-  const [lastRefresh, setLastRefresh] = useAtom(lastRefreshAtom);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const data = await getFlows({
-        "flow.data": debounced_text_filter,
-        dst_ip: service?.ip,
-        dst_port: service?.port,
-        from_time: from_filter,
-        to_time: to_filter,
-        service: "", // FIXME
-        tags: filterTags,
-      });
-      setFlowList(data);
-      setLoading(false);
-    };
-    fetchData().catch(console.error);
-  }, [
-    service,
-    debounced_text_filter,
-    from_filter,
-    to_filter,
-    filterTags,
-    lastRefresh,
-  ]);
+  // TODO: fix the below transformation - move it to server
+  // Diederik gives you a beer once it has been fixed
+  const transformedFlowData = flowData?.map((flow) => ({
+    ...flow,
+    service_tag:
+      services?.find((s) => s.ip === flow.dst_ip && s.port === flow.dst_port)
+        ?.name ?? "unknown",
+  }));
 
   const mode = searchParams.get("correlation") ?? "time";
   const setCorrelationMode = (mode: string) => {
@@ -89,7 +80,7 @@ export const Corrie = () => {
   );
 
   const graphProps: GraphProps = {
-    flowList: flowList,
+    flowList: transformedFlowData || [],
     mode: mode,
     searchParams: searchParams,
     setSearchParams: setSearchParams,

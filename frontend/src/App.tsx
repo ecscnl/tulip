@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { Suspense } from "react";
-import { Provider } from "jotai";
 
 import "./App.css";
 import { Header } from "./components/Header";
@@ -12,39 +11,37 @@ import { Corrie } from "./components/Corrie";
 
 function App() {
   return (
-    <Provider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Home />} />
-            <Route
-              path="flow/:id"
-              element={
-                <Suspense>
-                  <FlowView />
-                </Suspense>
-              }
-            />
-            <Route
-              path="diff/:id"
-              element={
-                <Suspense>
-                  <DiffView />
-                </Suspense>
-              }
-            />
-            <Route
-              path="corrie/"
-              element={
-                <Suspense>
-                  <Corrie />
-                </Suspense>
-              }
-            />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </Provider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route
+            path="flow/:id"
+            element={
+              <Suspense>
+                <FlowView />
+              </Suspense>
+            }
+          />
+          <Route
+            path="diff/:id"
+            element={
+              <Suspense>
+                <DiffView />
+              </Suspense>
+            }
+          />
+          <Route
+            path="corrie/"
+            element={
+              <Suspense>
+                <Corrie />
+              </Suspense>
+            }
+          />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
 

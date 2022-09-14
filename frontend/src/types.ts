@@ -16,6 +16,11 @@ export interface Flow {
   filename: string;
 }
 
+export interface TickInfo {
+  startDate: string;
+  tickLength: number;
+}
+
 export interface FullFlow extends Flow {
   signatures: Signature[];
   flow: FlowData[];

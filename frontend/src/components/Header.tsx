@@ -1,6 +1,4 @@
 import { format, parse } from "date-fns";
-import { atom, useAtom } from "jotai";
-import { atomWithStorage } from "jotai/utils";
 import { Suspense, useState } from "react";
 import {
   Link,
@@ -8,7 +6,6 @@ import {
   useSearchParams,
   useNavigate,
 } from "react-router-dom";
-import { Service, useTulip } from "../api";
 import ReactDiffViewer from "react-diff-viewer";
 
 import {
@@ -19,14 +16,13 @@ import {
   FIRST_DIFF_KEY,
   SECOND_DIFF_KEY,
   SERVICE_REFETCH_INTERVAL_MS,
+  TICK_REFETCH_INTERVAL_MS,
 } from "../const";
-import { useCTF } from "../pages/Home";
-import { useGetFlowQuery, useGetServicesQuery } from "../services/api";
-
-export const showHexAtom = atomWithStorage("showHex", false);
-
-// Hack to force refres sidebar
-export const lastRefreshAtom = atom(Date.now());
+import {
+  useGetFlowQuery,
+  useGetServicesQuery,
+  useGetTickInfoQuery,
+} from "../api";
 
 function ServiceSelection() {
   const FILTER_KEY = SERVICE_FILTER_KEY;
@@ -95,7 +91,18 @@ function TextSearch() {
 function useMessyTimeStuff() {
   let [searchParams, setSearchParams] = useSearchParams();
 
-  const { startDate, tickLength } = useCTF();
+  const { data: tickInfoData } = useGetTickInfoQuery(undefined, {
+    pollingInterval: TICK_REFETCH_INTERVAL_MS,
+  });
+
+  // TODO: prevent having to work with default values here
+  let startDate = "1970-01-01T00:00:00Z";
+  let tickLength = 1000;
+
+  if (tickInfoData) {
+    startDate = tickInfoData.startDate;
+    tickLength = tickInfoData.tickLength;
+  }
 
   function setTimeParam(startTick: string, param: string) {
     const parsedTick = startTick === "" ? undefined : parseInt(startTick);
@@ -193,24 +200,6 @@ function EndDateSelection() {
   );
 }
 
-function ShowHexToggle() {
-  const [showHex, setShowHex] = useAtom(showHexAtom);
-
-  return (
-    <div className="flex items-baseline mx-4">
-      <input
-        type="checkbox"
-        className="mr-2"
-        checked={showHex}
-        onChange={() => {
-          setShowHex(!showHex);
-        }}
-      />
-      <label htmlFor="">Hexdump</label>
-    </div>
-  );
-}
-
 function FirstDiff() {
   let params = useParams();
   let [searchParams, setSearchParams] = useSearchParams();
@@ -289,8 +278,6 @@ export function Header() {
   let [searchParams] = useSearchParams();
   const { setToLastnTicks, currentTick } = useMessyTimeStuff();
 
-  const [lastRefresh, setLastRefresh] = useAtom(lastRefreshAtom);
-
   return (
     <>
       <Link to={`/?${searchParams}`}>
@@ -313,10 +300,7 @@ export function Header() {
       <div>
         <button
           className=" bg-amber-100 text-gray-800 rounded-md px-2 py-1"
-          onClick={() => {
-            setToLastnTicks(5);
-            setLastRefresh(Date.now());
-          }}
+          onClick={() => setToLastnTicks(5)}
         >
           Last 5 ticks
         </button>
@@ -328,18 +312,18 @@ export function Header() {
       </Link>
       <div className="ml-auto mr-4" style={{ display: "flex" }}>
         <div className="mr-4">
-          <FirstDiff></FirstDiff>
+          <FirstDiff />
         </div>
         <div className="mr-4">
-          <SecondDiff></SecondDiff>
+          <SecondDiff />
         </div>
         <div className="mr-6">
           <Suspense>
-            <Diff></Diff>
+            <Diff />
           </Suspense>
         </div>
         <div
-          className="ml-auto mr-4"
+          className="ml-auto"
           style={{
             display: "flex",
             justifyContent: "center",
@@ -349,10 +333,6 @@ export function Header() {
         >
           Current: {currentTick}
         </div>
-
-        {/* <div className="ml-auto">
-        <ShowHexToggle></ShowHexToggle>
-      </div> */}
       </div>
     </>
   );
